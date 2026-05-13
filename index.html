@@ -2711,7 +2711,6 @@
     }).join('');
 
     const answeredQuestions = section.questions.filter(q => userAns[q.number]);
-    const answeredQuestions = section.questions.filter(q => userAns[q.number]);
     const answeredNums = answeredQuestions.map(q => q.number);
     const reviewData = {};
     answeredQuestions.forEach(q => {
