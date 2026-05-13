@@ -2311,12 +2311,14 @@
           sections: {},
         };
       }
-      const cur = byUser[uid].sections[s.section_id];
-      if (!cur || s.score > cur) {
-        byUser[uid].sections[s.section_id] = s.score;
+      // Petakan bundle ID (verbal__paket_1) ke parent ID (verbal) untuk leaderboard
+      const parentId = s.section_id.includes('__') ? s.section_id.split('__')[0] : s.section_id;
+      const cur = byUser[uid].sections[parentId];
+      if (cur === undefined || s.score > cur) {
+        byUser[uid].sections[parentId] = s.score;
       }
     });
-    
+
     let rows;
     if (state.lbTab === 'total') {
       rows = Object.values(byUser).map(u => {
@@ -3847,12 +3849,14 @@
           sections: {},
         };
       }
-      const cur = byUser[uid].sections[s.section_id];
-      if (!cur || s.score > cur) {
-        byUser[uid].sections[s.section_id] = s.score;
+      // Petakan bundle ID (verbal__paket_1) ke parent ID (verbal) untuk leaderboard
+      const parentId = s.section_id.includes('__') ? s.section_id.split('__')[0] : s.section_id;
+      const cur = byUser[uid].sections[parentId];
+      if (cur === undefined || s.score > cur) {
+        byUser[uid].sections[parentId] = s.score;
       }
     });
-    
+
     let rows;
     if (state.lbTab === 'total') {
       // Total: average of best scores per section. Hanya hitung user yg udah complete >= 1 section
