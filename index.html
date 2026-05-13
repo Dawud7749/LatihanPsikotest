@@ -608,7 +608,8 @@
   .q-num.current { background: var(--primary); color: white; border-color: var(--primary); }
   .q-num.correct { background: var(--success-light); border-color: var(--success); color: var(--success); }
   .q-num.wrong { background: var(--danger-light); border-color: var(--danger); color: var(--danger); }
-  .q-num.skipped { background: #F3F4F6; border-color: #D1D5DB; color: #9CA3AF; }
+  .q-num.skipped { background: #F3F4F6; border-color: #D1D5DB; color: #9CA3AF; cursor: default; }
+  .q-num.selected { box-shadow: 0 0 0 3px rgba(99,102,241,0.35); border-color: var(--primary) !important; }
   
   /* Result UI */
   .result-summary {
@@ -2705,16 +2706,19 @@
       const ans = userAns[q.number];
       const isCorrect = ans === q.answer;
       const cls = !ans ? 'skipped' : (isCorrect ? 'correct' : 'wrong');
-      return `<div class="q-num ${cls}">${q.number}</div>`;
+      const qnumAttr = ans ? ` data-qnum="${q.number}"` : '';
+      return `<div class="q-num ${cls}"${qnumAttr}>${q.number}</div>`;
     }).join('');
 
     const answeredQuestions = section.questions.filter(q => userAns[q.number]);
-    const reviewHtml = answeredQuestions.map(q => {
+    const answeredQuestions = section.questions.filter(q => userAns[q.number]);
+    const answeredNums = answeredQuestions.map(q => q.number);
+    const reviewData = {};
+    answeredQuestions.forEach(q => {
       const ans = userAns[q.number];
       const isCorrect = ans === q.answer;
       const status = isCorrect ? 'correct' : 'wrong';
       const statusLabel = isCorrect ? 'Benar' : 'Salah';
-      
       let optionsHtml = '';
       if (section.type === 'visual') {
         optionsHtml = `<img src="data:image/jpeg;base64,${q.image_b64}" class="question-image" alt="Soal ${q.number}">`;
@@ -2723,43 +2727,25 @@
           if (letter === q.answer) cls += ' is-correct';
           if (letter === ans && !isCorrect) cls += ' user-wrong';
           if (letter === ans && isCorrect) cls += ' user-correct';
-          optionsHtml += `
-            <div class="review-option${cls}">
-              <div class="option-letter">${letter}</div>
-              <div class="option-text">Pilihan ${letter}${letter === q.answer ? ' ✓ (Jawaban Benar)' : ''}${letter === ans && !isCorrect ? ' ✗ (Jawabanmu)' : ''}</div>
-            </div>
-          `;
+          optionsHtml += `<div class="review-option${cls}"><div class="option-letter">${letter}</div><div class="option-text">Pilihan ${letter}${letter === q.answer ? ' \x{2713} (Jawaban Benar)' : ''}${letter === ans && !isCorrect ? ' \x{2717} (Jawabanmu)' : ''}</div></div>`;
         });
       } else {
         optionsHtml = '<div class="review-options">';
         Object.entries(q.options).forEach(([letter, text]) => {
           let cls = '';
           let suffix = '';
-          if (letter === q.answer) { cls += ' is-correct'; suffix += ' ✓ (Jawaban Benar)'; }
-          if (letter === ans && !isCorrect) { cls += ' user-wrong'; suffix += ' ✗ (Jawabanmu)'; }
+          if (letter === q.answer) { cls += ' is-correct'; suffix += ' \x{2713} (Jawaban Benar)'; }
+          if (letter === ans && !isCorrect) { cls += ' user-wrong'; suffix += ' \x{2717} (Jawabanmu)'; }
           if (letter === ans && isCorrect) { cls += ' user-correct'; }
-          optionsHtml += `
-            <div class="review-option${cls}">
-              <div class="option-letter">${letter}</div>
-              <div class="option-text">${escapeHtml(text)}<strong>${suffix}</strong></div>
-            </div>
-          `;
+          optionsHtml += `<div class="review-option${cls}"><div class="option-letter">${letter}</div><div class="option-text">${escapeHtml(text)}<strong>${suffix}</strong></div></div>`;
         });
         optionsHtml += '</div>';
       }
-      
-      return `
-        <div class="review-item ${status}">
-          <div class="review-header">
-            <div class="review-num">Soal ${q.number}</div>
-            <div class="review-status ${status}">${statusLabel}</div>
-          </div>
-          ${section.type !== 'visual' ? `<div class="review-question">${escapeHtml(q.question)}</div>` : ''}
-          ${optionsHtml}
-          ${q.explanation ? `<div class="explanation"><strong>Pembahasan:</strong> ${escapeHtml(q.explanation)}</div>` : ''}
-        </div>
-      `;
-    }).join('');
+      reviewData[q.number] = {
+        status,
+        html: `<div class="review-item ${status}"><div class="review-header"><div class="review-num">Soal ${q.number}</div><div class="review-status ${status}">${statusLabel}</div></div>${section.type !== 'visual' ? `<div class="review-question">${escapeHtml(q.question)}</div>` : ''}${optionsHtml}${q.explanation ? `<div class="explanation"><strong>Pembahasan:</strong> ${escapeHtml(q.explanation)}</div>` : ''}</div>`
+      };
+    });
     
     const retrySubmitBtn = state.submitStatus[sectionId] === 'error' ? 
       '<button class="btn btn-sm btn-secondary" id="retrySubmitBtn">Coba Kirim Ulang</button>' : '';
@@ -2805,10 +2791,15 @@
         <div class="question-grid">${gridHtml}</div>
       </div>
 
-      ${reviewHtml ? `
-      <div class="card mt-4">
-        <h3 style="margin-bottom: 16px">Pembahasan Jawaban</h3>
-        ${reviewHtml}
+      ${answeredQuestions.length > 0 ? `
+      <div class="card mt-4" id="reviewCard">
+        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:16px; flex-wrap:wrap; gap:8px">
+          <h3 style="margin:0">Pembahasan Jawaban</h3>
+          <span style="font-size:12px; color:var(--text-muted)">Klik nomor soal untuk melihat pembahasan</span>
+        </div>
+        <div id="reviewPanel" style="min-height:80px; display:flex; align-items:center; justify-content:center; color:var(--text-muted); font-size:14px; padding:24px 0">
+          \x{261D}\x{fe0f} Klik nomor soal di atas untuk melihat pembahasannya
+        </div>
       </div>` : ''}
     `;
     
@@ -2852,6 +2843,35 @@
         duration: score.duration || 0, timedOut: score.timedOut,
       });
       render();
+    });
+    // ---- Review panel: show one question at a time ----
+    function showReview(qnum) {
+      document.querySelectorAll('.q-num[data-qnum]').forEach(el => {
+        el.classList.toggle('selected', parseInt(el.dataset.qnum) === qnum);
+      });
+      const panel = document.getElementById('reviewPanel');
+      if (!panel) return;
+      const data = reviewData[qnum];
+      if (!data) return;
+      const idx = answeredNums.indexOf(qnum);
+      const prevNum = idx > 0 ? answeredNums[idx - 1] : null;
+      const nextNum = idx < answeredNums.length - 1 ? answeredNums[idx + 1] : null;
+      panel.style.cssText = 'display:block; padding:0';
+      panel.innerHTML = `
+        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:16px; gap:8px">
+          <button class="btn btn-sm btn-secondary" id="prevReviewBtn" ${!prevNum ? 'disabled style="opacity:0.4"' : ''}>&#8592; Sebelumnya</button>
+          <span style="font-size:13px; color:var(--text-muted)">Soal ${qnum} / ${section.questions.length}</span>
+          <button class="btn btn-sm btn-secondary" id="nextReviewBtn" ${!nextNum ? 'disabled style="opacity:0.4"' : ''}>Berikutnya &#8594;</button>
+        </div>
+        ${data.html}
+      `;
+      if (prevNum) document.getElementById('prevReviewBtn').addEventListener('click', () => showReview(prevNum));
+      if (nextNum) document.getElementById('nextReviewBtn').addEventListener('click', () => showReview(nextNum));
+      const card = document.getElementById('reviewCard');
+      if (card) card.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+    }
+    document.querySelectorAll('.q-num[data-qnum]').forEach(el => {
+      el.addEventListener('click', () => showReview(parseInt(el.dataset.qnum)));
     });
   }
   
