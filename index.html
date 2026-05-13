@@ -1274,6 +1274,41 @@
   .sh-boxes { display:flex; flex-direction:row; gap:20px; margin:28px 0 32px; justify-content:center; }
   .sh-box { width:90px; height:90px; display:flex; align-items:center; justify-content:center; font-size:44px; font-weight:700; border:2.5px solid var(--border); border-radius:14px; cursor:pointer; transition:transform .12s,border-color .12s,background .12s,color .12s; background:var(--surface); color:var(--text); user-select:none; font-family:'Menlo','Monaco',monospace; }
   .sh-box:hover { border-color:var(--primary); background:var(--primary-light); color:var(--primary); transform:scale(1.05); }
+  /* ====== GOLDEN RATIO FOOTER ====== */
+  /* φ = 1.618 — dipakai pada proporsi padding, font-size, dan spacing */
+  .gr-footer {
+    text-align: center;
+    padding: 20px 0 32px;          /* 32 / 20 ≈ φ */
+    margin-top: 24px;
+  }
+  .gr-footer-inner {
+    display: inline-flex;
+    align-items: center;
+    gap: 10px;                      /* 16 / 10 ≈ φ */
+    padding: 6px 16px;              /* 16 / 6 ≈ φ² */
+    border-radius: 100px;
+    border: 1px solid var(--border);
+    background: var(--surface);
+  }
+  .gr-footer-line {
+    width: 26px;
+    height: 1px;
+    background: linear-gradient(90deg, transparent, var(--primary-medium));
+  }
+  .gr-footer-line.right {
+    background: linear-gradient(90deg, var(--primary-medium), transparent);
+  }
+  .gr-footer-text {
+    font-size: 10px;                /* 10 × φ ≈ 16px (header font) */
+    font-weight: 600;
+    letter-spacing: 0.12em;
+    color: var(--text-muted);
+    text-transform: uppercase;
+  }
+  .gr-footer-text span {
+    color: var(--primary);
+    font-weight: 700;
+  }
 </style>
 </head>
 <body>
@@ -1305,6 +1340,14 @@
 </header>
 
 <div id="app" class="container"></div>
+
+<footer class="gr-footer">
+  <div class="gr-footer-inner">
+    <div class="gr-footer-line"></div>
+    <p class="gr-footer-text">Created by <span>Dawusept</span></p>
+    <div class="gr-footer-line right"></div>
+  </div>
+</footer>
 
 <div id="modal" class="modal-bg hidden">
   <div class="modal">
@@ -4005,8 +4048,15 @@
   if (!isLeaderboardEnabled()) {
     console.warn('Supabase belum dikonfigurasi. Leaderboard tidak aktif. Lihat SETUP_SUPABASE.md');
   }
-  
+
+  // Sync progress dari Supabase saat app dimuat (refresh) — jika sudah login
+  // Ini memastikan progress selalu up-to-date tanpa perlu logout/login ulang
   render();
+  if (currentUser && isLeaderboardEnabled()) {
+    syncStateFromSupabase().then(() => {
+      if (state.view === 'home' || state.view === 'leaderboard') render();
+    });
+  }
 </script>
 </body>
 </html>
