@@ -1908,9 +1908,12 @@
         }
         currentUser = user;
         saveUser(user);
+        state.userId = user.id;
         state.view = 'home';
         saveState();
-        render();
+        // Sync progress dari Supabase → state lokal (cross-device support)
+        syncStateFromSupabase().then(() => render());
+        render(); // render dulu dengan state lokal, akan re-render setelah sync
       } catch (e) {
         errEl.innerHTML = `<div class="form-error">${escapeHtml(e.message)}</div>`;
         btn.disabled = false;
@@ -3433,6 +3436,37 @@
       }, 'Simpan & Kembali');
     });
     startSelisihAngkaTimer();
+  }
+
+  // Sync progress dari Supabase ke state lokal — dipanggil setelah login
+  // Memungkinkan user melanjutkan di device manapun
+  async function syncStateFromSupabase() {
+    const sb = initSupabase();
+    if (!sb || !currentUser) return;
+    try {
+      const { data, error } = await sb.rpc('get_user_progress', { p_user_id: currentUser.id });
+      if (error || !data || data.length === 0) return;
+      data.forEach(row => {
+        const sid = row.section_id;
+        // Rekonstruksi state.scores dari Supabase
+        const history = Array.isArray(row.history) ? row.history.slice(-10) : [];
+        state.scores[sid] = {
+          score:     row.latest_score,
+          bestScore: row.best_score,
+          correct:   row.latest_correct,
+          total:     row.latest_total,
+          history
+        };
+        // Tandai section sebagai selesai berdasarkan data Supabase
+        if (!state.completedAt[sid]) {
+          state.completedAt[sid] = new Date(row.last_submitted_at).getTime();
+        }
+      });
+      saveState();
+      console.log(`[sync] Progress loaded: ${data.length} section(s) dari Supabase`);
+    } catch (e) {
+      console.error('syncStateFromSupabase error:', e);
+    }
   }
 
   function saveSelisihAngkaScore() {
