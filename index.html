@@ -3169,7 +3169,7 @@
     const sectionId = 'ganjil_genap';
     const g = state.ganjilGenap;
     const score = state.scores.ganjil_genap;
-    if (!g || !score) { renderHome(); return; }
+    if (!score) { renderHome(); return; } // g (ganjilGenap) bisa null jika di-sync dari Supabase — tidak masalah, semua data dari score
     
     let submitStatusHtml = '';
     if (currentUser && isLeaderboardEnabled()) {
