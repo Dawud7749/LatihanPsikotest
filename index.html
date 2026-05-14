@@ -3128,20 +3128,23 @@
     // Calculate scores per round
     let totalCorrect = 0;
     let totalQuestions = g.questions.length;
+    let totalAnswered = g.questions.filter(q => q.userAnswer !== undefined).length;
     const roundStats = [];
     for (let r = 0; r < GG_TOTAL_ROUNDS; r++) {
       const rq = g.questions.filter(q => q.round === r);
       if (rq.length === 0) {
-        roundStats.push({ round: r, correct: 0, wrong: 0, total: 0, score: 0 });
+        roundStats.push({ round: r, correct: 0, wrong: 0, total: 0, answered: 0, score: 0 });
         continue;
       }
       const correct = rq.filter(q => q.userAnswer !== undefined && q.userAnswer === q.answer).length;
       const wrong = rq.filter(q => q.userAnswer !== undefined && q.userAnswer !== q.answer).length;
-      roundStats.push({ round: r, correct, wrong, total: rq.length, score: Math.round((correct / rq.length) * 100) });
+      const answeredInRound = rq.filter(q => q.userAnswer !== undefined).length;
+      roundStats.push({ round: r, correct, wrong, total: rq.length, answered: answeredInRound, score: answeredInRound > 0 ? Math.round((correct / answeredInRound) * 100) : 0 });
       totalCorrect += correct;
     }
     
-    const score = totalQuestions > 0 ? Math.round((totalCorrect / totalQuestions) * 100) : 0;
+    // Skor = benar / yang dijawab (tidak dijawab tidak dianggap salah)
+    const score = totalAnswered > 0 ? Math.round((totalCorrect / totalAnswered) * 100) : 0;
     const duration = Math.round((g.finishedAt - g.startedAt) / 1000);
     
     // Riwayat percobaan
@@ -3150,6 +3153,7 @@
     history.push({
       correct: totalCorrect,
       total: totalQuestions,
+      answered: totalAnswered,
       score,
       timedOut,
       duration,
@@ -3162,6 +3166,7 @@
     state.scores.ganjil_genap = {
       correct: totalCorrect,
       total: totalQuestions,
+      answered: totalAnswered,
       score,
       bestScore: best,
       timedOut,
@@ -3177,7 +3182,7 @@
     
     // Submit to Supabase (hanya best score)
     if (currentUser && isLeaderboardEnabled()) {
-      submitScoreToSupabase('ganjil_genap', { score: best, correct: totalCorrect, total: totalQuestions, duration, timedOut })
+      submitScoreToSupabase('ganjil_genap', { score: best, correct: totalCorrect, total: totalAnswered, duration, timedOut })
         .then(() => {
           if (state.view === 'result' && state.activeSection === 'ganjil_genap') render();
         });
@@ -3199,7 +3204,9 @@
     }
     
     const correct = score.correct;
-    const wrong = score.total - correct;
+    const totalAnsweredResult = score.answered || score.total;
+    const wrong = totalAnsweredResult - correct;
+    const skipped = score.total - totalAnsweredResult;
     const pct = score.score;
     
     const name = currentUser ? escapeHtml(currentUser.display_name || currentUser.username) : '-';
@@ -3246,6 +3253,10 @@
             <div class="gg-stat-item">
               <span class="label">Total Salah</span>
               <span class="value" style="color: var(--danger)">${wrong}</span>
+            </div>
+            <div class="gg-stat-item">
+              <span class="label">Tidak Dijawab</span>
+              <span class="value" style="color: var(--warning)">${skipped}</span>
             </div>
             <div class="gg-stat-item">
               <span class="label">Ronde Dilewati</span>
