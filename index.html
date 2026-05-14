@@ -2589,9 +2589,9 @@
       });
     });
     
-    startTimer();
+    if (!timerInterval) startTimer();
   }
-  
+
   function startTimer() {
     if (timerInterval) clearInterval(timerInterval);
     timerInterval = setInterval(() => {
